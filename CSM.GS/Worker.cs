@@ -4,21 +4,24 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using CSM.GS.Common;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
 
-namespace Server
+namespace CSM.GS
 {
     public class Worker : BackgroundService, INatPunchListener
     {
+        // Consts
+        private const int ServerPort = 4240;
+        private const int ServerTick = 10;
+        
         private NetManager _puncher;
         private readonly ILogger _logger;
         
         private static readonly TimeSpan KickTime = new(0, 0, 6);
         private readonly Dictionary<string, WaitPeer> _waitingPeers = new();
         private readonly List<string> _peersToRemove = new();
-        
-        private const int ServerPort = 8080;
 
         public Worker(ILogger<Worker> logger)
         {
@@ -63,7 +66,7 @@ namespace Server
                 
                 _peersToRemove.Clear();
 
-                Thread.Sleep(10);
+                Thread.Sleep(ServerTick);
             }
             
             _logger.LogInformation("Stopping NAT Relay Server...");
@@ -96,6 +99,7 @@ namespace Server
                 // request token
                 _puncher.NatPunchModule.NatIntroduce(waitPeer.InternalAddr, waitPeer.ExternalAddr, localEndPoint, remoteEndPoint, token);
 
+                
                 // No longer waiting
                 _waitingPeers.Remove(token);
             } 

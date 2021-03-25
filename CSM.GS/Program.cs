@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Server
+namespace CSM.GS
 {
     /// <summary>
     ///     This is the UDP hole punching server, the clients will connect

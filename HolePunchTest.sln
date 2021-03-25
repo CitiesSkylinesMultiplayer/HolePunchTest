@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{BA11D380-BF3B-4B1C-8376-4661A5C3B2AE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "Server\Server.csproj", "{96108446-C47E-4762-AEF6-A6121A69668A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.GS", "CSM.GS\CSM.GS.csproj", "{96108446-C47E-4762-AEF6-A6121A69668A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 
-namespace Server
+namespace CSM.GS.Common
 {
     public class WaitPeer
     {
