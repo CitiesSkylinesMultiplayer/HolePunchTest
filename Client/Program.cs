@@ -99,8 +99,8 @@ namespace Client
                     continue;
                 }
                 
-                Console.WriteLine("Ping:");
-                peer.Send(NetDataWriter.FromString("Ping"), DeliveryMethod.Unreliable);
+                Console.WriteLine("Sending ping:");
+                peer.Send(NetDataWriter.FromString("Ping from client"), DeliveryMethod.Unreliable);
                 
                 Thread.Sleep(100);
             }
@@ -133,7 +133,7 @@ namespace Client
             var netListener = new EventBasedNetListener();
             netListener.NetworkReceiveEvent += (peer, reader, method) =>
             {
-                Console.WriteLine("Server received: " + reader.GetString());
+                Console.WriteLine("Server received: " + reader.GetString() + ". Sending pong...");
                 peer.Send(NetDataWriter.FromString("Pong from server!"), DeliveryMethod.ReliableOrdered);
             };
 
