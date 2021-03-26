@@ -78,6 +78,11 @@ namespace Client
                 Console.WriteLine("Connected to server: " + netPeer.EndPoint);
             };
             
+            netListener.NetworkErrorEvent += (point, error) =>
+            {
+                Console.WriteLine("Network Error: " + error);
+            };
+            
             Net = new NetManager(netListener);
             Net.NatPunchEnabled = true;
             Net.UnconnectedMessagesEnabled = true;
@@ -147,13 +152,22 @@ namespace Client
                 Console.WriteLine("Connection request from: " + request.RemoteEndPoint);
                 request.AcceptIfKey("CSM");
             };
+
+            netListener.NetworkErrorEvent += (point, error) =>
+            {
+                Console.WriteLine("Network Error: " + error);
+            };
             
             Net = new NetManager(netListener);
             Net.NatPunchEnabled = true;
             Net.UnconnectedMessagesEnabled = true;
             Net.NatPunchModule.Init(natPunchListener);
 
-            Net.Start(4230);
+            var success = Net.Start(4230);
+            if (!success)
+            {
+                Console.WriteLine("Could not start server for some reason");
+            }
             
             Net.NatPunchModule.SendNatIntroduceRequest(globalServer, "server_a7Gd3H");
 

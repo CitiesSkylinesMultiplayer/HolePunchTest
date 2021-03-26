@@ -9,7 +9,19 @@ using Microsoft.Extensions.Logging;
 
 namespace CSM.GS
 {
-    public class Worker : BackgroundService, INatPunchListener
+    /// <summary>
+    ///     This background service a UDP server which matches
+    ///     servers and clients up via NAT hole punching.
+    ///
+    ///     TODO:
+    ///         - What happens to servers that the GS thinks are gone,
+    ///           but still exist (removed from list, but receiving ping events)
+    ///         - If the GS crashes, gracefully handling re-setup of all the servers
+    ///         - Let clients connect using a token instead of an IP address
+    ///         - Gracefully handle exceptions and restart the service (prob through docker)
+    ///         - Configurable ports + tick rate
+    /// </summary>
+    public class WorkerService : BackgroundService, INatPunchListener
     {
         // Constants
         private const int ServerPort = 4240;
@@ -23,7 +35,7 @@ namespace CSM.GS
         private readonly Dictionary<IPAddress, Server> _gameServers = new();
         private readonly List<IPAddress> _serversToRemove = new();
 
-        public Worker(ILogger<Worker> logger)
+        public WorkerService(ILogger<WorkerService> logger)
         {
             _logger = logger;
         }
@@ -37,7 +49,7 @@ namespace CSM.GS
             {
                 if (type != UnconnectedMessageType.BasicMessage)
                     return;
-
+                
                 // If this server exists, refresh it
                 if (_gameServers.TryGetValue(point.Address, out var server))
                 {

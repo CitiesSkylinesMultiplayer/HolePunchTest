@@ -20,6 +20,6 @@ namespace CSM.GS
                     logging.AddConsole();
                 })
                 .ConfigureServices((hostContext, services) => 
-                    services.AddHostedService<Worker>());
+                    services.AddHostedService<WorkerService>());
     }
 }
