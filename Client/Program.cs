@@ -72,6 +72,11 @@ namespace Client
                 var message = reader.GetString();
                 Console.WriteLine($"[{peer}] {message}");
             };
+
+            netListener.PeerConnectedEvent += netPeer =>
+            {
+                Console.WriteLine("Connected to server: " + netPeer.EndPoint);
+            };
             
             Net = new NetManager(netListener);
             Net.NatPunchEnabled = true;
@@ -135,6 +140,12 @@ namespace Client
             netListener.PeerConnectedEvent += peer =>
             {
                 Console.WriteLine("Client connected to server: " + peer.EndPoint);
+            };
+
+            netListener.ConnectionRequestEvent += request =>
+            {
+                Console.WriteLine("Connection request from: " + request.RemoteEndPoint);
+                request.AcceptIfKey("CSM");
             };
             
             Net = new NetManager(netListener);
