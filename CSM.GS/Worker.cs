@@ -12,16 +12,17 @@ namespace CSM.GS
 {
     public class Worker : BackgroundService, INatPunchListener
     {
-        // Consts
+        // Constants
         private const int ServerPort = 4240;
         private const int ServerTick = 10;
         
+        private static readonly TimeSpan KickTime = new(0, 0, 10);
+        
         private NetManager _puncher;
         private readonly ILogger _logger;
-        
-        private static readonly TimeSpan KickTime = new(0, 0, 6);
-        private readonly Dictionary<string, WaitPeer> _waitingPeers = new();
-        private readonly List<string> _peersToRemove = new();
+
+        private readonly Dictionary<IPAddress, GameServer> _gameServers = new();
+        private readonly List<IPAddress> _serversToRemove = new();
 
         public Worker(ILogger<Worker> logger)
         {
@@ -30,12 +31,26 @@ namespace CSM.GS
         
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Setup 
             var netListener = new EventBasedNetListener();
             
+            // Here we update the last contact time in the list of internal servers
+            netListener.NetworkReceiveUnconnectedEvent += (point, _, type) =>
+            {
+                if (type != UnconnectedMessageType.BasicMessage)
+                    return;
+
+                // If this server exists, refresh it
+                if (_gameServers.TryGetValue(point.Address, out var server))
+                {
+                    server.Refresh();
+                }
+            };
+
             _puncher = new NetManager(netListener);
+            
             _puncher.Start(ServerPort);
             _puncher.NatPunchEnabled = true;
+            _puncher.UnconnectedMessagesEnabled = true;
             _puncher.NatPunchModule.Init(this);
 
             _logger.LogInformation("Starting NAT Relay Server...");
@@ -46,25 +61,26 @@ namespace CSM.GS
                 var now = DateTime.Now;
                 
                 _puncher.NatPunchModule.PollEvents();
+                _puncher.PollEvents();
                 
-                // Check old peers, if a peer has been waiting for longer than
-                // "KickTime", they need to be removed from the peer list
-                foreach (var (key, peer) in _waitingPeers) 
+                // Check old servers, if a server has been waiting for longer than
+                // "KickTime", they need to be removed from the server list
+                foreach (var (ip, server) in _gameServers) 
                 {
-                    if (now - peer.RefreshTime > KickTime) 
+                    if (now - server.LastPing > KickTime) 
                     {
-                        _peersToRemove.Add(key);
+                        _serversToRemove.Add(ip);
                     }
                 }
 
-                // Now actually Remove peers that are due for removal
-                for (var i = 0; i <= _peersToRemove.Count - 1; i++) 
+                // Now actually remove servers that are due for removal
+                for (var i = 0; i <= _serversToRemove.Count - 1; i++) 
                 {
-                    _logger.LogInformation("Kicking peer: {Peer}", _peersToRemove[i]);
-                    _waitingPeers.Remove(_peersToRemove[i]);
+                    _logger.LogInformation("[{ExternalAddress}] Server has disconnected, removing from internal dictionary...", _serversToRemove[i]);
+                    _gameServers.Remove(_serversToRemove[i]);
                 }
                 
-                _peersToRemove.Clear();
+                _serversToRemove.Clear();
 
                 Thread.Sleep(ServerTick);
             }
@@ -77,37 +93,43 @@ namespace CSM.GS
 
         public void OnNatIntroductionRequest(IPEndPoint localEndPoint, IPEndPoint remoteEndPoint, string token)
         {
-            // See if the the other peer is in the waiting list
-            if (_waitingPeers.TryGetValue(token, out var waitPeer)) 
+            // Incoming formats
+            // Server: server_{token}
+            // Client: client_{server_ip:port}
+            
+            // This is a server connecting
+            if (token.StartsWith("server_"))
             {
-                // If the same client already waiting, refresh
-                if (waitPeer.InternalAddr.Equals(localEndPoint) && waitPeer.ExternalAddr.Equals(remoteEndPoint)) 
+                if (_gameServers.ContainsKey(remoteEndPoint.Address))
                 {
-                    _logger.LogInformation("Existing peer, refreshing...");
-                    waitPeer.Refresh();
-                    return;
+                    _logger.LogInformation("[{ExternalAddress}] Server is already registered, refreshing...", remoteEndPoint);
                 }
-                
-                // At this point, we have access to both peers that want to connect to each other
-                _logger.LogInformation("Wait peer found, sending introduction...");
-                _logger.LogInformation("Host: {HostingInternalAddress} {HostExternalAddress}, Client: {ClientInternalAddress} {ClientExternalAddress}", waitPeer.InternalAddr, waitPeer.ExternalAddr, localEndPoint, remoteEndPoint);
-
-                // host internal
-                // host external
-                // client internal
-                // client external
-                // request token
-                _puncher.NatPunchModule.NatIntroduce(waitPeer.InternalAddr, waitPeer.ExternalAddr, localEndPoint, remoteEndPoint, token);
-
-                
-                // No longer waiting
-                _waitingPeers.Remove(token);
-            } 
-            else 
+                else
+                {
+                    _logger.LogInformation("[{ExternalAddress}] Registered Server: Internal Address={InternalAddress} Token={Token}", remoteEndPoint, localEndPoint, token);
+                    _gameServers[remoteEndPoint.Address] = new GameServer(localEndPoint, remoteEndPoint, token.Split('_')[1]);
+                }
+            }
+            else // This is a client connecting
             {
-                // Only one peer has talked to the NAT server, store it and wait for the other peer
-                _logger.LogInformation("Wait peer created: {InternalAddress} {ExternalAddress}", localEndPoint, remoteEndPoint);
-                _waitingPeers[token] = new WaitPeer(localEndPoint, remoteEndPoint);
+                var serverIp = IPAddress.Parse(token.Split('_')[1]);
+                if (_gameServers.TryGetValue(serverIp, out var server))
+                {
+                    // At this point, we have access to the client and server, we can now introduce them
+                    _logger.LogInformation("Server found, sending introduction...");
+                    _logger.LogInformation("Host: {HostingInternalAddress} {HostExternalAddress}, Client: {ClientInternalAddress} {ClientExternalAddress}", server.InternalAddress, server.ExternalAddress, localEndPoint, remoteEndPoint);
+
+                    // host internal
+                    // host external
+                    // client internal
+                    // client external
+                    // request token
+                    _puncher.NatPunchModule.NatIntroduce(server.InternalAddress, server.ExternalAddress, localEndPoint, remoteEndPoint, token);
+                }
+                else
+                {
+                    _logger.LogInformation("Server not found, ignoring...");
+                }
             }
         }
 

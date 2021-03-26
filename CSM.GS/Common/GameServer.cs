@@ -33,18 +33,12 @@ namespace CSM.GS.Common
         ///     is still running.
         /// </summary>
         public DateTime LastPing { get; private set; }
-
-        /// <summary>
-        ///     If this is a dedicated server, always false, here for potential
-        ///     future proofing.
-        /// </summary>
-        public bool Dedicated => false;
-
-        public GameServer(IPEndPoint internalAddress, IPEndPoint externalAddress)
+        
+        public GameServer(IPEndPoint internalAddress, IPEndPoint externalAddress, string token)
         {
             Refresh();
 
-            Token = Helpers.GenerateRandomToken();
+            Token = token;
             InternalAddress = internalAddress;
             ExternalAddress = externalAddress;
         }
