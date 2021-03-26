@@ -1,14 +1,14 @@
 using System;
 using System.Net;
 
-namespace CSM.GS.Common
+namespace CSM.GS
 {
     /// <summary>
     ///     Represents a game server connected to the current CSM GS.
     ///     As long as the game server is running, this object will stay
     ///     in memory.
     /// </summary>
-    public class GameServer
+    public class Server
     {
         /// <summary>
         ///     A unique token identifying this server (so the public IP address does
@@ -34,7 +34,7 @@ namespace CSM.GS.Common
         /// </summary>
         public DateTime LastPing { get; private set; }
         
-        public GameServer(IPEndPoint internalAddress, IPEndPoint externalAddress, string token)
+        public Server(IPEndPoint internalAddress, IPEndPoint externalAddress, string token)
         {
             Refresh();
 

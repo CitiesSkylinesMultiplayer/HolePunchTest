@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Net;
-using CSM.GS.Common;
 using LiteNetLib;
 using Microsoft.Extensions.Logging;
 
@@ -21,7 +20,7 @@ namespace CSM.GS
         private NetManager _puncher;
         private readonly ILogger _logger;
 
-        private readonly Dictionary<IPAddress, GameServer> _gameServers = new();
+        private readonly Dictionary<IPAddress, Server> _gameServers = new();
         private readonly List<IPAddress> _serversToRemove = new();
 
         public Worker(ILogger<Worker> logger)
@@ -107,7 +106,7 @@ namespace CSM.GS
                 else
                 {
                     _logger.LogInformation("[{ExternalAddress}] Registered Server: Internal Address={InternalAddress} Token={Token}", remoteEndPoint, localEndPoint, token);
-                    _gameServers[remoteEndPoint.Address] = new GameServer(localEndPoint, remoteEndPoint, token.Split('_')[1]);
+                    _gameServers[remoteEndPoint.Address] = new Server(localEndPoint, remoteEndPoint, token.Split('_')[1]);
                 }
             }
             else // This is a client connecting
