@@ -61,10 +61,11 @@ namespace Client
             var natPunchListener = new EventBasedNatPunchListener();
             natPunchListener.NatIntroductionSuccess += (point, _, _) =>
             {
+                Console.WriteLine("Nat Introduction Success, Connecting to " + point);
                 peer = Net.Connect(point, "CSM");
                 connected = true;
             };
-
+            
             var netListener = new EventBasedNetListener();
             netListener.NetworkReceiveEvent += (peer, reader, method) =>
             {
@@ -94,7 +95,7 @@ namespace Client
                 }
                 
                 Console.WriteLine("Ping:");
-                peer.Send(NetDataWriter.FromString("Ping"), DeliveryMethod.ReliableOrdered);
+                peer.Send(NetDataWriter.FromString("Ping"), DeliveryMethod.Unreliable);
                 
                 Thread.Sleep(100);
             }
@@ -118,16 +119,28 @@ namespace Client
 
             var globalServer = new IPEndPoint(IPAddress.Parse(RelayServerIp), 4240);
 
+            var natPunchListener = new EventBasedNatPunchListener();
+            natPunchListener.NatIntroductionSuccess += (point, _, _) =>
+            {
+                Console.WriteLine("Nat Introduction Success, Accepting connection from " + point);
+            };
+            
             var netListener = new EventBasedNetListener();
             netListener.NetworkReceiveEvent += (peer, reader, method) =>
             {
                 Console.WriteLine("Server received: " + reader.GetString());
                 peer.Send(NetDataWriter.FromString("Pong from server!"), DeliveryMethod.ReliableOrdered);
             };
+
+            netListener.PeerConnectedEvent += peer =>
+            {
+                Console.WriteLine("Client connected to server: " + peer.EndPoint);
+            };
             
             Net = new NetManager(netListener);
             Net.NatPunchEnabled = true;
             Net.UnconnectedMessagesEnabled = true;
+            Net.NatPunchModule.Init(natPunchListener);
 
             Net.Start(4230);
             
