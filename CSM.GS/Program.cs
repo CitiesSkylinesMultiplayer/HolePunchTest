@@ -11,7 +11,7 @@ namespace CSM.GS
     public class Program
     {
         public static void Main(string[] args) => CreateHostBuilder(args).Build().Run();
-        
+
         private static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureLogging(logging =>
@@ -19,7 +19,7 @@ namespace CSM.GS
                     logging.ClearProviders();
                     logging.AddConsole();
                 })
-                .ConfigureServices((hostContext, services) => 
+                .ConfigureServices((hostContext, services) =>
                     services.AddHostedService<WorkerService>());
     }
 }

@@ -15,7 +15,7 @@ namespace CSM.GS
         ///     not need to be displayed)
         /// </summary>
         public string Token { get; }
-        
+
         /// <summary>
         ///     The internal IP address (behind the NAT) of the server, also known
         ///     as the local or private IP.
@@ -27,13 +27,13 @@ namespace CSM.GS
         ///     known as the public ip address (what the client will connect to)
         /// </summary>
         public IPEndPoint ExternalAddress { get; }
-        
+
         /// <summary>
         ///     Time of the last ping of the server, used to determine if the server
         ///     is still running.
         /// </summary>
         public DateTime LastPing { get; private set; }
-        
+
         public Server(IPEndPoint internalAddress, IPEndPoint externalAddress, string token)
         {
             Refresh();
@@ -42,7 +42,7 @@ namespace CSM.GS
             InternalAddress = internalAddress;
             ExternalAddress = externalAddress;
         }
-        
+
         public void Refresh()
         {
             LastPing = DateTime.Now;

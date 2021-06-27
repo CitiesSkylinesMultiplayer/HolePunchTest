@@ -1,9 +1,8 @@
-﻿using System;
+﻿using LiteNetLib;
+using LiteNetLib.Utils;
+using System;
 using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
-using LiteNetLib;
-using LiteNetLib.Utils;
 
 namespace Client
 {
@@ -20,11 +19,12 @@ namespace Client
                 case '0':
                     new CClient().Run();
                     return;
+
                 case '1':
                     new CServer().Run();
                     return;
             }
-            
+
             Console.WriteLine("Invalid Selection!");
         }
     }
@@ -32,9 +32,9 @@ namespace Client
     public abstract class CBase
     {
         protected string RelayServerIp;
-        
+
         protected NetManager Net;
-        
+
         public abstract void Run();
 
         protected void RequestRelayServerIp()
@@ -43,19 +43,19 @@ namespace Client
             RelayServerIp = Console.ReadLine();
         }
     }
-    
+
     public class CClient : CBase
     {
         public override void Run()
         {
             var connected = false;
             NetPeer? peer = null;
-            
+
             Console.WriteLine("Stating Client...");
             RequestRelayServerIp();
 
             var serverIp = RequestServerIp();
-            
+
             var globalServer = new IPEndPoint(IPAddress.Parse(RelayServerIp), 4240);
 
             var natPunchListener = new EventBasedNatPunchListener();
@@ -65,7 +65,7 @@ namespace Client
                 peer = Net.Connect(point, "CSM");
                 connected = true;
             };
-            
+
             var netListener = new EventBasedNetListener();
             netListener.NetworkReceiveEvent += (peer, reader, method) =>
             {
@@ -77,12 +77,12 @@ namespace Client
             {
                 Console.WriteLine("Connected to server: " + netPeer.EndPoint);
             };
-            
+
             netListener.NetworkErrorEvent += (point, error) =>
             {
                 Console.WriteLine("Network Error: " + error);
             };
-            
+
             Net = new NetManager(netListener);
             Net.NatPunchEnabled = true;
             Net.UnconnectedMessagesEnabled = true;
@@ -90,29 +90,29 @@ namespace Client
 
             Net.Start();
             Net.NatPunchModule.SendNatIntroduceRequest(globalServer, $"client_{serverIp}");
-            
+
             var running = true;
             while (running)
             {
                 Net.NatPunchModule.PollEvents();
                 Net.PollEvents();
-                
+
                 // Wait till connected
                 if (peer == null)
                 {
                     Thread.Sleep(100);
                     continue;
                 }
-                
+
                 Console.WriteLine("Sending ping:");
                 peer.Send(NetDataWriter.FromString("Ping from client"), DeliveryMethod.Unreliable);
-                
+
                 Thread.Sleep(100);
             }
-            
+
             Net.Stop();
         }
-        
+
         private string RequestServerIp()
         {
             Console.WriteLine("Enter IP Address of server: ");
@@ -134,7 +134,7 @@ namespace Client
             {
                 Console.WriteLine("Nat Introduction Success, Accepting connection from " + point);
             };
-            
+
             var netListener = new EventBasedNetListener();
             netListener.NetworkReceiveEvent += (peer, reader, method) =>
             {
@@ -157,7 +157,7 @@ namespace Client
             {
                 Console.WriteLine("Network Error: " + error);
             };
-            
+
             Net = new NetManager(netListener);
             Net.NatPunchEnabled = true;
             Net.UnconnectedMessagesEnabled = true;
@@ -168,7 +168,7 @@ namespace Client
             {
                 Console.WriteLine("Could not start server for some reason");
             }
-            
+
             Net.NatPunchModule.SendNatIntroduceRequest(globalServer, "server_a7Gd3H");
 
             var running = true;
@@ -179,10 +179,10 @@ namespace Client
 
                 // This would be sent every 5 seconds in the actual game
                 Net.SendUnconnectedMessage(NetDataWriter.FromString("server_a7Gd3H"), globalServer);
-                
+
                 Thread.Sleep(100);
             }
-            
+
             Net.Stop();
         }
     }
