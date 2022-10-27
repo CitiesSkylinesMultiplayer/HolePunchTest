@@ -8,7 +8,7 @@ namespace CSM.GS
     ///     This is the UDP hole punching server, the clients will connect
     ///     to this server to setup the correct ports
     /// </summary>
-    public class Program
+    public static class Program
     {
         public static void Main(string[] args) => CreateHostBuilder(args).Build().Run();
 
@@ -19,7 +19,7 @@ namespace CSM.GS
                     logging.ClearProviders();
                     logging.AddConsole();
                 })
-                .ConfigureServices((hostContext, services) =>
+                .ConfigureServices((_, services) =>
                     services.AddHostedService<WorkerService>());
     }
 }

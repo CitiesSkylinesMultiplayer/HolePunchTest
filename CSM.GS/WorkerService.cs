@@ -25,10 +25,8 @@ namespace CSM.GS
     {
         // Constants
         private const int ServerPort = 4240;
-
         private const int ServerTick = 10;
-
-        private static readonly TimeSpan KickTime = new(0, 0, 10);
+        private static readonly TimeSpan KickTime = TimeSpan.FromSeconds(15);
 
         private NetManager _puncher;
         private readonly ILogger _logger;
@@ -43,7 +41,7 @@ namespace CSM.GS
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var netListener = new EventBasedNetListener();
+            EventBasedNetListener netListener = new();
 
             // Here we update the last contact time in the list of internal servers
             netListener.NetworkReceiveUnconnectedEvent += (point, _, type) =>
@@ -52,7 +50,7 @@ namespace CSM.GS
                     return;
 
                 // If this server exists, refresh it
-                if (_gameServers.TryGetValue(point.Address, out var server))
+                if (_gameServers.TryGetValue(point.Address, out Server server))
                 {
                     server.Refresh();
                 }
@@ -70,14 +68,14 @@ namespace CSM.GS
             // Loop
             while (!stoppingToken.IsCancellationRequested)
             {
-                var now = DateTime.Now;
+                DateTime now = DateTime.Now;
 
                 _puncher.NatPunchModule.PollEvents();
                 _puncher.PollEvents();
 
                 // Check old servers, if a server has been waiting for longer than
                 // "KickTime", they need to be removed from the server list
-                foreach (var (ip, server) in _gameServers)
+                foreach ((IPAddress ip, Server server) in _gameServers)
                 {
                     if (now - server.LastPing > KickTime)
                     {
@@ -86,10 +84,10 @@ namespace CSM.GS
                 }
 
                 // Now actually remove servers that are due for removal
-                for (var i = 0; i <= _serversToRemove.Count - 1; i++)
+                foreach (IPAddress ip in _serversToRemove)
                 {
-                    _logger.LogInformation("[{ExternalAddress}] Server has disconnected, removing from internal dictionary...", _serversToRemove[i]);
-                    _gameServers.Remove(_serversToRemove[i]);
+                    _logger.LogInformation("[{ExternalAddress}] Server has disconnected, removing from internal dictionary...", Anonymize(ip));
+                    _gameServers.Remove(ip);
                 }
 
                 _serversToRemove.Clear();
@@ -109,33 +107,43 @@ namespace CSM.GS
             // Server: server_{token}
             // Client: client_{server_ip:port}
 
+            string[] tokenParts = token.Split('_');
+            if (tokenParts.Length != 2)
+            {
+                return;
+            }
+
             // This is a server connecting
-            if (token.StartsWith("server_"))
+            if (tokenParts[0] == "server")
             {
                 if (_gameServers.ContainsKey(remoteEndPoint.Address))
                 {
-                    _logger.LogInformation("[{ExternalAddress}] Server is already registered, refreshing...", remoteEndPoint);
+                    _logger.LogInformation("[{ExternalAddress}] Server is already registered, refreshing...", Anonymize(remoteEndPoint));
                 }
                 else
                 {
-                    _logger.LogInformation("[{ExternalAddress}] Registered Server: Internal Address={InternalAddress} Token={Token}", remoteEndPoint, localEndPoint, token);
-                    _gameServers[remoteEndPoint.Address] = new Server(localEndPoint, remoteEndPoint, token.Split('_')[1]);
+                    _logger.LogInformation("[{ExternalAddress}] Registered Server: Internal Address={InternalAddress} Token={Token}", Anonymize(remoteEndPoint), Anonymize(localEndPoint), tokenParts);
                 }
+                // Always create new server entry, so that port numbers and the token are updated
+                _gameServers[remoteEndPoint.Address] = new Server(localEndPoint, remoteEndPoint, tokenParts[1]);
             }
-            else // This is a client connecting
+            else if (tokenParts[0] == "client") // This is a client connecting
             {
-                var serverIp = IPAddress.Parse(token.Split('_')[1]);
-                if (_gameServers.TryGetValue(serverIp, out var server))
+                IPAddress serverIp;
+                try
+                {
+                    serverIp = IPAddress.Parse(tokenParts[1]);
+                }
+                catch (FormatException)
+                {
+                    return;
+                }
+
+                if (_gameServers.TryGetValue(serverIp, out Server server))
                 {
                     // At this point, we have access to the client and server, we can now introduce them
-                    _logger.LogInformation("Server found, sending introduction...");
-                    _logger.LogInformation("Host: {HostingInternalAddress} {HostExternalAddress}, Client: {ClientInternalAddress} {ClientExternalAddress}", server.InternalAddress, server.ExternalAddress, localEndPoint, remoteEndPoint);
+                    _logger.LogInformation("Introduction -> Host: {HostingInternalAddress} {HostExternalAddress}, Client: {ClientInternalAddress} {ClientExternalAddress}", Anonymize(server.InternalAddress), Anonymize(server.ExternalAddress), Anonymize(localEndPoint), Anonymize(remoteEndPoint));
 
-                    // host internal
-                    // host external
-                    // client internal
-                    // client external
-                    // request token
                     _puncher.NatPunchModule.NatIntroduce(server.InternalAddress, server.ExternalAddress, localEndPoint, remoteEndPoint, token);
                 }
                 else
@@ -148,6 +156,24 @@ namespace CSM.GS
         public void OnNatIntroductionSuccess(IPEndPoint targetEndPoint, NatAddressType type, string token)
         {
             // Ignore as we are the server
+        }
+
+        private static string Anonymize(IPEndPoint endpoint)
+        {
+            return Anonymize(endpoint.Address) + ":" + endpoint.Port;
+        }
+
+        private static string Anonymize(IPAddress address)
+        {
+            string[] parts = address.ToString().Split('.');
+            if (parts.Length == 4)
+            {
+                return parts[0] + '.' + parts[1] + ".x.x";
+            }
+            else
+            {
+                return address.ToString();
+            }
         }
     }
 }
